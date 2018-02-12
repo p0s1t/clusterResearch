@@ -1,0 +1,207 @@
+﻿
+#include 'clusterGen.h'
+
+#include <string>
+#include <random>
+#include <iostream>
+#include <vector>
+#include <iterator>
+
+
+
+using namespace std;
+
+clusterGen::clusterGen(){};
+
+~clusterGen::clusterGen(){};
+
+vector<Cluster> clusterGen::makeClusters(int minC, int maxC, int minDim, int maxDim, int minN, int maxN, int minB, int maxB, double minD, double maxD, double minV, double maxV, double minG, double maxG){
+
+	Cluster thisC = {};
+	Cluster thatC = {};
+
+	vector<Cluster> vec;//container for the testing clusters that will be run to determine program viability
+
+	bool uniformity = false;
+
+	double value = 0;
+
+	int buffer = getRanInt(minB, maxB);
+
+	int nDims = getRanInt(minDim, maxDim);
+	int nClusters = getRanInt(minC, maxC);
+	int nValues = getRanInt(minN, maxN);
+
+	double gradient = getRanDub(minG, maxG);
+	double variance = getRanDub(minV, maxV);
+	double density = getRanDub(minD, maxD);
+
+	int randomUniformity = getRanInt(2,1);
+	if((randomUniformity % 2) == 0) uniformity = true;
+
+
+	for(int i = 0; i < nClusters; i++){
+
+
+		thisC.index = i;
+		thisC.grade = gradient;
+		thisC.dens = density;
+		thisC.noise = variance;
+		thisC.nDims = nDims;
+		thisC.N = nValues;
+		thisC.buffer = buffer;
+		thisC.nClusters = nClusters;//may be redundant
+		thisC.uniform = uniformity;
+
+
+		for(int r = 0; i < nValues; r++){
+
+			value = (getRanDub(minVal, maxVal));//pull a value from the e(i)ther given boundary constraints
+
+			vector<double> row;
+
+
+			for(int d = 0; d < nDimensions; d++){
+
+
+				value += getRanDub(minVariance, maxVariance);//add artificial noise
+
+				if(uniformity == false) valueInRange += gradient+meanDensity;//add gradient to density if non-uniform density is specified by user
+				else valueInRange += meanDensity;
+
+				row.push_back(valueInRange);//add dimension to row vector
+
+			}//end for each dimension in nDims
+
+			thisCluster.values.push_back(row);//add row vector to cluster vector
+
+		}//end for each value in nValues
+
+		vec.push_back(thisCluster);//add cluster struct to master container
+	}
+
+	return vec;//give em the goods!
+
+}//end makeClusters
+
+double clusterGen::getRanDub(double min, double max){
+
+	std::random_device fortuna;//oh, fortuna!
+
+    std::mt19937 verse( fortuna() );
+
+    std::uniform_real_distribution<double> uni(min, max);
+
+	double ranDub = uni(verse);
+	return ranDub;
+
+}//end get Random Double
+
+int clusterGen::getRanInt(int min, int max){
+
+	std::random_device fortuna;//oh, fortuna!
+
+    std::mt19937 verse( fortuna() );
+
+    std::uniform_real_distribution<int> uni(min, max);
+
+	double ranInt = uni(verse);
+	return ranInt;
+
+
+}//end get Random Integer
+
+void clusterGen::runTests(int nTests){
+
+	double noiseFactor = 100;//indicates subdivision of density used for noise calcluation
+	for(int i = 0; i < nTests; i++){
+
+	int nClusters = getRanInt(20, 1);
+	int nDimensions = getRanInt(100, 1);
+	int nValues = getRanInt(100, 1);
+
+	double meanDensity = getRanDub(.001, .0000001);
+
+	//max/min values differ by at least two orders of magnitude, and at most seven orders of magnitude
+	double maxVal = getRanDub(.01, .0001);
+	double minVal = getRanDub(.000001, .000000001);
+
+	double gradient = getRanDub(.00001, .0000001);
+	double variance = getRanDub(meanDensity/noiseFactor, meanDensity/(noiseFactor*noiseFactor));
+
+	bool uniformity = false;
+	int uniformityIndicator = getRanInt(100,0);
+	if(uniformityIndicator%2 == 0) uniformity = true;//switch density uniformity randomly for tests
+
+
+	int buffer = (int)(nValues/(getRanInt(nValues-1, 0))); //buffered overlap in cluster data ranges from proximally absolute at min to zero (no overlap) at max
+
+	vector<Cluster> testClusters = makeClusters(nClusters, nDimensions, nValues, meanDensity, minVal, maxVal, gradient, variance, uniformity, buffer);
+
+	if(toFile(testClusters, "testInput.csv")) return 0;//appends to FILE object after first iteration
+	else cout << "System error: Outputting clusters' data to file not succesful" << endl;
+
+	}
+
+
+}//end runTests
+
+bool clusterGen::toFile(vector<Cluster> tests, string pathOut, string delimiter){
+	bool success = false;
+
+	string newline = "\n";
+
+	for(auto i = tests.begin(); i != tests.end(); i++){//for each cluster, write an output test file to compare to what the
+
+	ofstream streamOut(pathOut, ios::app);//appends data to file as needed
+
+	if(!streamOut.is_open()) cout << "Error in output, file stream unavailable for data logging" << endl;
+
+	else{
+
+			for(auto d = i.values.begin(); d= i.values.end(); d++){//for each dimension in cluster
+
+				for(auto v = d.begin(); v != d.end(); v++){//for each value, write to output file
+
+						std::ostringstream converter;
+						converter << v;//convert data from numeric value to string
+						string dataAsString = converter.str();
+						dataAsString += delimiter;//csv files separated by whatever delimiter the user passes to the function
+						ofstream << dataAsString;
+
+				}//end for each value in dimension (v)
+						ofstream << newline;//add carriage return at end of current dimensional data
+			}//end for each dimension in cluster (d)
+
+		}//end for each cluster in nTests (i)
+
+	}//end else
+	success = true;
+	return success;
+}//end toFile
+
+int main(int argv, char** argc){
+
+	if(argv > 1){
+
+		int nTests = atoi(argc[0]);
+
+		runTests(nTests);
+	}
+	else cout << "System input error: Not enough arguments in command line execution to meet program req's" << endl;
+
+
+
+}//end main
+
+
+
+
+
+
+
+int main()
+{
+    cout << "Hello world!" << endl;
+    return 0;
+}
